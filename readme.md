@@ -43,6 +43,7 @@ docker-compose run web python manage.py test
 ## Запуск системи:
 
 ```
+docker-compose exec web python manage.py migrate
 docker-compose up
 ```
 
