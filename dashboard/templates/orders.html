@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Management</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    {% csrf_token %}
+    <script>
+        function getCookie(name) {
+            let value = "; " + document.cookie;
+            let parts = value.split("; " + name + "=");
+            if (parts.length == 2) return parts.pop().split(";").shift();
+        }
+
+        let csrftoken = getCookie('csrftoken');
+
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/.test(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                }
+            }
+        });
+
+        function fetchOrders() {
+            $.get("/api/orders/", function(data) {
+                $("#orders-list").empty();
+                data.forEach(order => {
+                    let profitColor = order.profit > 0 ? 'green' : (order.profit < 0 ? 'red' : 'black');
+                    let profitDisplay = order.profit !== null ? parseFloat(order.profit).toFixed(2) : 'N/A';
+                    let stopLossDisplay = order.stop_loss !== null ? parseFloat(order.stop_loss).toFixed(2) : 'N/A';
+                    let takeProfitDisplay = order.take_profit !== null ? parseFloat(order.take_profit).toFixed(2) : 'N/A';
+                    let currentPriceDisplay = parseFloat(order.current_price).toFixed(2);
+                    let priceDisplay = parseFloat(order.price).toFixed(2);
+                    let amount = parseFloat(order.amount).toFixed(2);
+                    let total_price = parseFloat(order.total_price).toFixed(2);
+
+                    $("#orders-list").append(`
+                        <li class="list-group-item">
+                            ${order.symbol} - Current: ${currentPriceDisplay}, Order Price: ${priceDisplay}
+                            <br>Profit: <span style="color:${profitColor}">${profitDisplay}</span>
+                            <br>Total Price: ${total_price}
+                            <br>Amount: ${amount}
+                            <br>Stop Loss: ${stopLossDisplay}
+                            <br>Take Profit: ${takeProfitDisplay}
+                            <br>Status: ${order.status}
+                            <button class="btn btn-danger btn-sm float-right" onclick="deleteOrder(${order.id})">Delete</button>
+                        </li>`);
+                });
+            });
+        }
+
+        function deleteOrder(orderId) {
+            $.ajax({
+                url: `/api/orders/${orderId}/`,
+                type: 'DELETE',
+                success: function() {
+                    fetchOrders();
+                }
+            });
+        }
+    </script>
+</head>
+
+<body>
+    <div class="container mt-5">
+        <h2>Create Order</h2>
+        <form id="create-order-form">
+            <input class="form-control" type="text" id="symbol" placeholder="Symbol" required>
+            <input class="form-control mt-2" type="number" id="price" placeholder="Price" required>
+            <input class="form-control mt-2" type="number" id="amount" step="0.01" placeholder="Amount" required>
+            <input class="form-control mt-2" type="number" id="stop_loss" placeholder="Stop Loss">
+            <input class="form-control mt-2" type="number" id="take_profit" placeholder="Take Profit">
+            <button class="btn btn-primary mt-2" type="submit">Create</button>
+        </form>
+
+        <h2 class="mt-5">Order List</h2>
+        <ul id="orders-list" class="list-group"></ul>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            fetchOrders();
+
+            setInterval(fetchOrders, 1000);
+
+            $("#create-order-form").submit(function(e) {
+                e.preventDefault();
+
+                let symbol = $("#symbol").val();
+                let price = $("#price").val();
+                let stop_loss = $("#stop_loss").val();
+                let take_profit = $("#take_profit").val();
+                let amount = $("#amount").val();
+                console.log(symbol)
+
+                $.post("/api/orders/", {
+                    symbol: symbol,
+                    price: price,
+                    amount: amount,
+                    stop_loss: stop_loss,
+                    take_profit: take_profit
+                }, function() {
+                    fetchOrders();
+                    $("#symbol").val("");
+                    $("#price").val("");
+                    $("#stop_loss").val("");
+                    $("#take_profit").val("");
+                    $("#amount").val("");
+                });
+            });
+
+        });
+    </script>
+</body>
+
+</html>

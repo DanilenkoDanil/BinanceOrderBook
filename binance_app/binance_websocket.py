@@ -3,6 +3,8 @@ import json
 import logging
 import time
 
+from order_api.views import update_order_status
+from order_api.models import Order
 from binance_order_book import settings
 from binance_app.models import BinanceSymbol
 
@@ -42,8 +44,13 @@ class BinanceWebSocket:
     def on_message(self, ws, message):
         try:
             data = json.loads(message)
+
+            updated_symbols = {item['s']: float(item['c']) for item in data}
+            active_orders = Order.objects.filter(symbol__in=updated_symbols.keys(), status__in=['open', 'bought'])
+
             self.update_symbols(data)
-            logger.info(f"Processed {len(data)} symbols")
+            update_order_status(active_orders, updated_symbols)
+
         except Exception as e:
             logger.error(f"Error processing message: {e}", exc_info=True)
 
